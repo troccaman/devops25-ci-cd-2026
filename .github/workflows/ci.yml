@@ -31,7 +31,7 @@ jobs:
 
 
       - name: Run tests and create report
-        run: pytest --junitxml=test-results.xml
+        run: python -m pytest --junitxml=test-results.xml
 
       - name: Upload test report
         if: always()
