@@ -30,4 +30,4 @@ def test_add_missing_parameter():
 def test_multiply_endpoint():
     response = client.get("/multiply?a=4&b=5")
     assert response.status_code == 200
-    assert response.json() == {"result": 999}
+    assert response.json() == {"result": 20.0}
