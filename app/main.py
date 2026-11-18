@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.service import add
+from app.service import add, multiply
 
 app = FastAPI(title="DevOps CI/CD Demo")
 
@@ -9,11 +9,9 @@ app = FastAPI(title="DevOps CI/CD Demo")
 def root():
     return {"message": "DevOps CI/CD Demo"}
 
-
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
 
 @app.get("/add")
 def add_endpoint(a: float, b: float):
@@ -25,3 +23,7 @@ def version():
         "version": "1.1",
         "environment": "demo",
     }
+
+@app.get("/multiply")
+def multiply_endpoint(a: float, b: float):
+    return {"result": multiply(a, b)}
