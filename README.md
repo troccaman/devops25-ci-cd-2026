@@ -58,7 +58,7 @@ devops25-ci-cd-2026/
 │       ├── 01-ci-failed.png
 │       ├── 02-ci-success.png
 │       ├── 03-cd-success.png
-│       └── 04-cd-deployment-verifiering.png
+│       └── 04-cd-success-verify.png
 ├── Dockerfile
 ├── requirements.txt
 ├── .gitignore
