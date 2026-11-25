@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.service import add, multiply
+from app.service import add, multiply, subtract
 
 app = FastAPI(title="DevOps CI/CD Demo")
 
@@ -27,3 +27,7 @@ def version():
 @app.get("/multiply")
 def multiply_endpoint(a: float, b: float):
     return {"result": multiply(a, b)}
+
+@app.get("/subtract")
+def subtract_endpoint(a: float, b: float):
+    return {"result": subtract(a, b)}
