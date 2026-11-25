@@ -1,40 +1,31 @@
-# CI/CD-projekt – automatiserad testning och deployment
+# CI/CD-projekt – FastAPI-miniräknare
 
-Praktiskt projekt inom automatiserad testning, Continuous Integration och Continuous Delivery, utvecklat under **DevOps Engineer-utbildningen på Nackademin**.
+Ett projekt från DevOps Engineer-utbildningen på Nackademin. En FastAPI-applikation har byggts ut med en miniräknare i HTML, CSS och JavaScript. Projektet visar hur tester, Docker-byggnation och simulerad deployment automatiseras med GitHub Actions och GitHub Container Registry (GHCR).
 
-Projektet bygger vidare på tidigare CI/CD-laborationer och omfattar automatiserade tester med Pytest, kodkontroll med Ruff och Docker-byggnation via GitHub Actions. Arbetet demonstrerar även felsökning av en misslyckad pipeline, simulerad deployment samt versionshantering och rollback med Docker och Bash.
+**Status:** CI och CD är nu kopplade till varandra. En godkänd CI-körning publicerar en Docker-image i GHCR, som CD sedan hämtar och verifierar. Applikationen körs tillfälligt i GitHub Actions, inte på en produktionsserver.
 
-## 1. Projektöversikt
+## Projektets utveckling
 
-Detta projekt bygger vidare på kursens FastAPI-applikation och demonstrerar ett CI/CD-flöde med GitHub Actions, Pytest, Ruff, Docker och Bash. Målet är att automatisera kontroller, fånga upp fel innan Docker-bygget och verifiera att en levererad applikation fungerar.
+Projektet började som en FastAPI-applikation med automatiserad testning i GitHub Actions. Ett avsiktligt testfel användes för att demonstrera hur en misslyckad CI-körning stoppar Docker-bygget.
 
-I projektet har jag:
+Därefter implementerades en separat, simulerad CD-process samt Bash-skript för lokal deployment, verifiering och rollback. En återställning från applikationsversion 1.2 till 1.1 genomfördes med Docker.
 
-- Utökat API:et med multiplikation och test av saknad parameter.
-- Skapat ett avsiktligt fel i ett test och visat hur CI stoppar Docker-bygget.
-- Korrigerat testet och verifierat en grön CI-körning.
-- Använt simulerad CD för att bygga, starta och kontrollera applikationen.
-- Anpassat Bash-skript för lokal deployment och rollback.
-- Demonstrerat återställning från applikationsversion 1.2 till 1.1.
+Projektet vidareutvecklades sedan med en webbaserad miniräknare i HTML, CSS och JavaScript, utökade API-funktioner och totalt 12 automatiserade tester.
 
-Projektet är en utbildningsmiljö, inte en produktionsdriftsättning.
+Slutligen kopplades CI och CD samman. Docker-imagen publiceras nu i GitHub Container Registry (GHCR), och CD startar först efter en godkänd CI-körning och hämtar samma image för verifiering.
 
-## 2. Tekniker och verktyg
+## Tekniker och verktyg
 
 | Teknik | Användning |
 | --- | --- |
-| Python och FastAPI | Applikation och REST API |
-| Pytest | Funktionella tester och API-tester |
-| Ruff | Automatisk kodkontroll |
-| Git och GitHub | Versionshantering, brancher och Pull Requests |
+| Python / FastAPI | API och beräkningslogik |
+| HTML / CSS / JavaScript | Miniräknarens gränssnitt |
+| Pytest / Ruff | Tester och kodkontroll |
+| Docker / GHCR | Containerbygge och lagring av images |
 | GitHub Actions | CI och simulerad CD |
-| Docker | Bygga images och köra containrar |
 | Bash | Lokal deployment, verifiering och rollback |
-| Linux | Lokal utvecklings- och testmiljö |
 
-GitHub Actions och Docker-imagen använder Python 3.12. Lokalt har testerna även körts i en Python 3.14-miljö.
-
-## 3. Projektstruktur
+## Projektstruktur
 
 ```text
 devops25-ci-cd-2026/
@@ -45,7 +36,11 @@ devops25-ci-cd-2026/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py
-│   └── service.py
+│   ├── service.py
+│   └── static/
+│       ├── index.html
+│       ├── style.css
+│       └── script.js
 ├── tests/
 │   ├── test_api.py
 │   └── test_service.py
@@ -58,254 +53,142 @@ devops25-ci-cd-2026/
 │       ├── 01-ci-failed.png
 │       ├── 02-ci-success.png
 │       ├── 03-cd-success.png
-│       └── 04-cd-success-verify.png
+│       ├── 04-cd-success-verify.png
+│       ├── 05-calculator.png
+│       ├── 06-ghcr-push-failed.png
+│       ├── 07-ghcr-push-success1.png
+│       ├── 08-ghcr-push-success2.png
+│       ├── 09-cd-ghcr-success.png
+│       └── 10-cd-verification-steps.png
 ├── Dockerfile
 ├── requirements.txt
 ├── .gitignore
 └── README.md
 ```
 
-## 4. Applikation och ny funktionalitet
+- **`app/`** innehåller FastAPI, beräkningslogik och miniräknarens frontend.
+- **`tests/`** innehåller automatiserade tester; **`.github/workflows/`** innehåller CI och CD.
+- **`scripts/`** används för lokal deployment och rollback; **`docs/screenshots/`** visar test- och körresultat.
 
-API:et har följande endpoints:
+## Applikationen
 
-| Endpoint | Syfte |
+`app/main.py` hanterar API-anrop och serverar webbsidan, medan `app/service.py` utför beräkningarna. Frontend-filerna ligger i `app/static/` och anropar API:et med JavaScript.
+
+| Adress | Funktion |
 | --- | --- |
-| `/` | Grundläggande meddelande |
-| `/health` | Kontrollerar att applikationen svarar |
-| `/version` | Visar version och miljö |
-| `/add?a=2&b=3` | Addition |
-| `/multiply?a=4&b=5` | Multiplikation |
+| `/calculator` | Miniräknaren |
+| `/add`, `/subtract`, `/multiply`, `/divide` | Fyra räknesätt med parametrarna `a` och `b` |
+| `/health` | Kontrollerar att API:et svarar |
+| `/version` | Returnerar version `1.1` |
 
-Den nya multiplikationsfunktionen ligger i `app/service.py`:
+Division med noll ger HTTP 400. Saknade obligatoriska parametrar ger HTTP 422.
 
-```python
-def multiply(a: float, b: float) -> float:
-    return a * b
+Starta lokalt från projektmappen:
+
+```bash
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --reload
 ```
 
-Den anropas via en endpoint i `app/main.py`:
+Öppna [http://127.0.0.1:8000/calculator](http://127.0.0.1:8000/calculator).
 
-```python
-@app.get("/multiply")
-def multiply_endpoint(a: float, b: float):
-    return {"result": multiply(a, b)}
-```
+![Miniräknaren i VS Code med godkända tester](docs/screenshots/05-calculator.png)
 
-**Varför?** Beräkningslogik och API hålls åtskilda så att koden blir enklare att förstå och testa. Jag lade även till ett test som bekräftar att FastAPI avvisar ett anrop till `/add` när en obligatorisk parameter saknas (HTTP 422).
+## Tester och CI
 
-## 5. Automatiserad testning
-
-Tester finns i `tests/test_api.py` och `tests/test_service.py`.
-
-| Test | Vad som kontrolleras |
-| --- | --- |
-| `test_health` | `/health` ger HTTP 200 och rätt JSON |
-| `test_add_endpoint` | Addition genom API:et |
-| `test_version` | API:et returnerar version 1.1 |
-| `test_add_missing_parameter` | Saknad parameter ger HTTP 422 |
-| `test_multiply_endpoint` | Multiplikation genom API:et |
-| `test_add` | Additionsfunktionen direkt |
-| `test_divide` | Divisionsfunktionen direkt |
-| `test_divide_by_zero` | Division med noll ger `ValueError` |
-
-Lokala kontroller:
+Testerna kontrollerar bland annat beräkningar, API-svar, felhantering och att HTML-sidan levereras. De körs tillsammans med Ruff:
 
 ```bash
 python -m pytest -v
 python -m ruff check app tests
 ```
 
-Verifierat resultat:
+**Senaste lokala resultat:** `12 passed, 1 warning` och `All checks passed!`. HTML-testet kontrollerar att sidan levereras, men testar inte knapptryckningar i en riktig webbläsare.
 
-```text
-8 passed, 1 warning
-All checks passed!
-```
-
-Varningen hindrade inte testerna från att bli godkända.
-
-## 6. Continuous Integration – CI
-
-Workflowen finns i `.github/workflows/ci.yml` och körs vid push till `main`, `demo/**` och `cicd-projekt`, samt vid Pull Request mot `main`.
+CI-flödet finns i `.github/workflows/ci.yml`:
 
 ```text
 Push / Pull Request
-        |
-        v
-Installera beroenden
-        |
-        v
-Pytest + testrapport (artifact)
-        |
-        v
-Ruff
-        |
-        v
-Test and Lint godkänt?
-      /       \
-    Nej       Ja
-     |         |
-     v         v
-Docker-build  Docker-build
-hoppas över   körs
+        ↓
+  Pytest + Ruff
+        ↓ godkänt
+  Docker build
+        ↓ vid push
+  Publicera i GHCR
 ```
 
-Det separata Docker-jobbet använder `needs: test-and-lint`. Därför körs det inte om test- eller lintkontrollerna misslyckas. Docker-imagen taggas med Git-commitens SHA för spårbarhet, men publiceras inte i ett registry.
+Docker-jobbet använder `needs: test-and-lint` och hoppas över om testerna misslyckas. Testresultaten sparas i `test-results.xml` som en artifact, även om testerna inte blir godkända. Docker-imagen taggas med commit-SHA för spårbarhet. Vid Pull Request byggs imagen men publiceras inte.
 
-Pytest skriver resultat till `test-results.xml`. Filen sparas som en GitHub Actions-artifact med `if: always()`, även vid misslyckade tester.
+### Demonstration: röd och grön CI
 
-## 7. Kontrollerat testfel – röd till grön CI
+Multiplikationstestet fick avsiktligt förvänta sig `999` i stället för `20`. Ett test misslyckades och Docker-bygget hoppades över. Efter korrigering blev pipelinen grön. Felet låg i testets förväntade svar, inte i beräkningsfunktionen.
 
-För att demonstrera felhantering fick multiplikationstestet avsiktligt förvänta sig `999` fast `4 × 5` ger `20.0`.
+| Misslyckad CI | Godkänd CI |
+| --- | --- |
+| ![Testfel stoppar Docker-bygget](docs/screenshots/01-ci-failed.png) | ![Tester godkända och Docker byggd](docs/screenshots/02-ci-success.png) |
 
-**Misslyckad körning:** Sju tester godkändes och ett misslyckades. `Test and Lint` blev rött och `Build Docker Image` hoppades över. Testrapporten sparades som artifact.
+## GHCR – från behörighetsfel till lyckad publicering
 
-![Misslyckad CI-körning](docs/screenshots/01-ci-failed.png)
+Vid första försöket lyckades Docker-bygget, men publiceringen till GHCR nekades med `error from registry: denied`. Inställningen under **Settings → Actions → General → Workflow permissions** ändrades till **Read and write permissions**. Efter en omkörning lyckades publiceringen. Behörighetsändringen var den sannolika lösningen.
 
-**Korrigerad körning:** Testets förväntade resultat ändrades till `20.0`. Efter en ny commit och push godkändes samtliga åtta tester, Ruff och Docker-bygget.
+| Före: nekad publicering | Efter: lyckad publicering |
+| --- | --- |
+| ![GHCR denied](docs/screenshots/06-ghcr-push-failed.png) | ![Samtliga kontroller godkända](docs/screenshots/07-ghcr-push-success1.png) |
 
-![Godkänd CI-körning](docs/screenshots/02-ci-success.png)
+![Lyckad CI med build och push till GHCR](docs/screenshots/08-ghcr-push-success2.png)
 
-**Lärdom:** CI ska inte alltid vara grön. Den ska kunna stoppa en ändring som inte uppfyller kontrollerna. I detta fall fanns felet i testets förväntade resultat, inte i multiplikationsfunktionen.
+## CD – beroende av godkänd CI
 
-## 8. Simulerad Continuous Delivery – CD
-
-Workflowen i `.github/workflows/cd-simulated.yml` bygger en Docker-image på en tillfällig GitHub-runner, startar en container, verifierar den och tar bort containern efteråt.
+CD-flödet ligger i `.github/workflows/cd-simulated.yml`. Det använder `workflow_run` och kör deployment-jobbet **endast efter en lyckad CI-körning som startats av en push**.
 
 ```text
-Push till konfigurerad branch
-            |
-            v
-      Docker-build
-            |
-            v
-     Starta container
-            |
-            v
-     Kontrollera /health
-            |
-            v
-     Kontrollera /version
-            |
-            v
-      Stoppa container
+CI godkänd → Docker-image i GHCR
+                  ↓
+        CD hämtar samma image
+                  ↓
+           Startar container
+                  ↓
+       Kontrollerar /health
+          och /version
+                  ↓
+         Tar bort containern
 ```
 
-Förväntade API-svar:
+CD hämtar imagen med den utlösande CI-körningens commit-SHA i stället för att bygga en egen. Efter merge av Pull Request **#4** på `main` lyckades hela flödet: inloggning i GHCR, image-hämtning, containerstart, hälsokontroll, versionskontroll och borttagning av containern.
 
-```json
-{"status":"ok"}
-```
+| Lyckad CD-körning | Alla verifieringssteg |
+| --- | --- |
+| ![CD success efter workflow_run](docs/screenshots/09-cd-ghcr-success.png) | ![CD verifiering och cleanup](docs/screenshots/10-cd-verification-steps.png) |
 
-```json
-{"version":"1.1","environment":"demo"}
-```
+### Tidigare fristående CD
 
-![Lyckad simulerad CD](docs/screenshots/03-cd-success.png)
+Innan flödena kopplades samman byggde CD en egen Docker-image vid push. Dessa bilder visar den tidigare lösningen:
 
-![Verifieringssteg i CD](docs/screenshots/04-cd-success-verify.png)
+| Tidigare CD-körning | Tidigare verifiering |
+| --- | --- |
+| ![Tidigare CD-körning](docs/screenshots/03-cd-success.png) | ![Tidigare CD-steg](docs/screenshots/04-cd-success-verify.png) |
 
-CI och CD startar separat vid samma push. I den nuvarande lösningen väntar CD inte automatiskt på ett godkänt CI-jobb. Det är en medvetet redovisad begränsning, och ingen driftsättning görs till en permanent produktionsserver.
+## Lokal deployment och rollback
 
-## 9. Lokal deployment – varför Bash-skript?
+Tre Bash-skript används separat från GitHub Actions-CD:
 
-Jag använde först Docker-kommandon manuellt för att förstå image, container, portar och versionsbyte. Därefter använde jag de befintliga Bash-skripten, anpassade till projektets namn, för att förenkla de återkommande momenten.
-
-| Skript | Vad det automatiserar | Nytta |
-| --- | --- | --- |
-| `deploy_local.sh` | `docker build`, borttagning av gammal container och `docker run` | Repeterbar lokal deployment |
-| `verify.sh` | Flera försök med `curl` mot `/health` | Tydlig hälsokontroll |
-| `rollback_local.sh` | Kontroll av v1-image och start av v1-container | Enklare återställning |
-
-Lokal deployment och verifiering:
+| Skript | Funktion |
+| --- | --- |
+| `scripts/deploy_local.sh` | Bygger en lokal Docker-image och startar en container |
+| `scripts/verify.sh` | Kontrollerar `/health` med upprepade försök |
+| `scripts/rollback_local.sh` | Startar tidigare lokala imagen `cicd-projekt:v1` och verifierar den |
 
 ```bash
 bash scripts/deploy_local.sh
 bash scripts/verify.sh
 ```
 
-Verifierat terminalresultat:
+Rollback demonstrerades genom att köra en container från `cicd-projekt:v2` (applikationsversion 1.2) och sedan återgå till `cicd-projekt:v1` (version 1.1). Den tillfälliga ändringen till version 1.2 committades inte.
 
-```text
-=== Verifying deployment ===
-{"status":"ok"}
-Deployment verified successfully
-```
+Skripten behöver inte ändras för den nya CI/CD-kedjan: de är avsedda för lokal användning och hämtar inte images från GHCR.
 
-Versionskontroll:
+## Begränsningar och nästa steg
 
-```bash
-curl http://localhost:8000/version
-# {"version":"1.1","environment":"demo"}
-```
+CD är fortfarande **simulerad** och kör ingen permanent deployment. Versionskontrollen förväntar sig `1.1`, och automatisk rollback saknas. En vidareutveckling kan vara deployment till en egen server, automatisk rollback, dynamisk versionshantering och webbläsartester för miniräknaren.
 
-**Varför skript?** Samma kommandon körs i samma ordning, vilket sparar tid och minskar risken för manuella misstag. Skripten är versionshanterade i Git och kan återanvändas. `deploy_local.sh` verifierar dock inte själv applikationen; därför körs `verify.sh` separat.
-
-## 10. Docker-versionering och rollback
-
-Jag skapade två lokala Docker-images med olika applikationsversioner:
-
-| Image | Svar från `/version` |
-| --- | --- |
-| `cicd-projekt:v1` | `1.1` |
-| `cicd-projekt:v2` | `1.2` |
-
-Version 2 byggdes med en tillfällig lokal versionsändring som inte committades.
-
-Verifiering av **v2**:
-
-```bash
-sudo docker inspect --format '{{.Config.Image}}' cicd-projekt
-# cicd-projekt:v2
-
-curl http://localhost:8000/version
-# {"version":"1.2","environment":"demo"}
-```
-
-Rollback:
-
-```bash
-bash scripts/rollback_local.sh
-```
-
-Verifiering efter rollback:
-
-```bash
-sudo docker inspect --format '{{.Config.Image}}' cicd-projekt
-# cicd-projekt:v1
-
-curl http://localhost:8000/version
-# {"version":"1.1","environment":"demo"}
-
-curl http://localhost:8000/health
-# {"status":"ok"}
-```
-
-**Resultat:** Den körande containern återställdes från v2 till v1. Detta är ett versionsbyte, inte enbart en omstart. Efter demonstrationen återställdes källkodens versionsnummer till 1.1.
-
-## 11. Begränsningar och möjliga förbättringar
-
-- **CI och CD är inte beroendekopplade.** CD bör i en mer avancerad lösning vänta på en godkänd CI-körning.
-- **Images publiceras inte.** För återställning mellan servrar behövs ett registry med spårbart versionsmärkta images.
-- **Rollback är lokal.** Skriptet förutsätter att `cicd-projekt:v1` redan finns och hanterar inte databaser eller annan beständig data.
-- **Kort driftavbrott uppstår.** Den gamla containern tas bort innan nästa startar.
-- **Versionskontrollen är hårdkodad.** CD förväntar sig version 1.1; ett framtida förbättringssteg är en gemensam versionskälla.
-- **Ingen automatisk återställning vid misslyckad deploy.** Detta skulle kunna införas vid vidareutveckling.
-
-Dessa begränsningar är accepterade för kursprojektets omfattning.
-
-## 12. Slutsats och lärdomar
-
-Projektet visar hur Git, automatiska tester, Docker och GitHub Actions samverkar i ett praktiskt CI/CD-flöde.
-
-Jag har framför allt lärt mig att:
-
-- Skilja mellan kodkontroll, Docker-byggnation och verifierad deployment.
-- Använda beroenden mellan CI-jobb för att stoppa byggnation när tester misslyckas.
-- Spara testrapporter för spårbarhet och felsökning.
-- Kontrollera både applikationens hälsa och rätt version.
-- Automatisera upprepade Docker-kommandon med Bash.
-- Återställa en tidigare körbar version genom rollback.
-
-**Slutresultat:** En fungerande demonstration av CI, simulerad CD, lokal deployment och rollback – med ett dokumenterat testfel som stoppades och korrigerades.
+Projektet visar därmed hela vägen från kodändring och tester till versionsmärkt Docker-image, GHCR och verifierad simulerad CD – samt hur fel upptäcks och felsöks längs vägen.
